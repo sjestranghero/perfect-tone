@@ -21,7 +21,6 @@ function AdminDashboard() {
   const [adminName, setAdminName] = useState('Admin')
   const [, setTick] = useState(0)
 
-  // Refresh timestamps every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 30000)
     return () => clearInterval(interval)
@@ -43,7 +42,7 @@ function AdminDashboard() {
       const [products, orders, messages, customers] = await Promise.all([
         supabase.from('products').select('*', { count: 'exact', head: true }),
         supabase.from('orders').select('*', { count: 'exact', head: true }),
-        supabase.from('messages').select('*', { count: 'exact', head: true }),
+        supabase.from('messages').select('*', { count: 'exact', head: true }).eq('is_read', false),
         supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'customer'),
       ])
 
@@ -61,7 +60,6 @@ function AdminDashboard() {
         .limit(5)
       setRecentOrders(ordersData || [])
 
-      // Build real activity feed
       const activityItems = []
 
       const { data: recentOrdersRaw } = await supabase
@@ -122,7 +120,7 @@ function AdminDashboard() {
   const kpiCards = [
     { icon: '🎸', label: 'Total Products', value: stats.products, color: '#22c55e', bg: '#0d2d0d', border: '#22c55e', path: '/admin/products' },
     { icon: '📦', label: 'Total Orders',   value: stats.orders,   color: '#3b82f6', bg: '#0a1a3a', border: '#3b82f6', path: '/admin/orders' },
-    { icon: '💬', label: 'Messages',       value: stats.messages, color: '#a855f7', bg: '#1a0a2e', border: '#a855f7', path: '/admin/messages' },
+    { icon: '💬', label: 'Unread Messages', value: stats.messages, color: '#a855f7', bg: '#1a0a2e', border: '#a855f7', path: '/admin/messages' },
     { icon: '👤', label: 'Customers',      value: stats.customers, color: '#f97316', bg: '#2d1a00', border: '#f97316', path: null },
   ]
 
@@ -141,7 +139,6 @@ function AdminDashboard() {
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
 
-        {/* Topbar */}
         <div style={{ padding: '0 20px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#08080a', borderBottom: '1px solid #141418', position: 'sticky', top: 0, zIndex: 30 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="ham-btn" style={{ background: '#111', border: '1px solid #222', borderRadius: '8px', padding: '7px 10px', cursor: 'pointer', color: '#fff', fontSize: '16px', display: 'none', lineHeight: 1 }}>☰</button>
@@ -167,7 +164,6 @@ function AdminDashboard() {
             <div style={{ color: '#22c55e', fontSize: '14px', padding: '2rem' }}>Loading...</div>
           ) : (
             <>
-              {/* KPI Cards */}
               <div className="kpi-grid" style={{ display: 'grid', gap: '12px', marginBottom: '20px' }}>
                 {kpiCards.map(card => (
                   <div
@@ -186,10 +182,7 @@ function AdminDashboard() {
                 ))}
               </div>
 
-              {/* Orders + Activity */}
               <div className="main-grid" style={{ display: 'grid', gap: '16px', marginBottom: '20px' }}>
-
-                {/* Recent Orders */}
                 <div style={{ background: '#0a0a0c', border: '1px solid #1c1c22', borderRadius: '16px', overflow: 'hidden' }}>
                   <div style={{ padding: '16px 18px', borderBottom: '1px solid #111', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#555' }}>Recent Orders</div>
@@ -224,7 +217,6 @@ function AdminDashboard() {
                   })}
                 </div>
 
-                {/* Activity Feed */}
                 <div style={{ background: '#0a0a0c', border: '1px solid #1c1c22', borderRadius: '16px', overflow: 'hidden' }}>
                   <div style={{ padding: '16px 18px', borderBottom: '1px solid #111', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#555' }}>Recent Activity</div>
@@ -242,14 +234,13 @@ function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Quick Actions */}
               <div style={{ marginBottom: '8px' }}>
                 <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#555', marginBottom: '12px' }}>Quick Actions</div>
                 <div className="qa-grid" style={{ display: 'grid', gap: '12px' }}>
                   {[
-                    { icon: '🎸', title: 'Manage Products', sub: 'Add, edit or remove items',  accent: '#22c55e', bg: '#0d2d0d', path: '/admin/products' },
-                    { icon: '📦', title: 'Manage Orders',   sub: 'Update order statuses',      accent: '#3b82f6', bg: '#0a1a3a', path: '/admin/orders' },
-                    { icon: '💬', title: 'View Messages',   sub: 'Reply to customers',         accent: '#a855f7', bg: '#1a0a2e', path: '/admin/messages' },
+                    { icon: '🎸', title: 'Manage Products', sub: 'Add, edit or remove items', accent: '#22c55e', bg: '#0d2d0d', path: '/admin/products' },
+                    { icon: '📦', title: 'Manage Orders',   sub: 'Update order statuses',     accent: '#3b82f6', bg: '#0a1a3a', path: '/admin/orders' },
+                    { icon: '💬', title: 'View Messages',   sub: 'Reply to customers',        accent: '#a855f7', bg: '#1a0a2e', path: '/admin/messages' },
                   ].map(card => (
                     <div
                       key={card.title}

@@ -2,14 +2,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../../lib/supabase'
 import AdminSidebar from '../../components/AdminSidebar'
 
-function timeAgo(dateStr) {
-  const diff = Math.floor((Date.now() - new Date(dateStr)) / 1000)
-  if (diff < 60) return `${diff}s ago`
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  return new Date(dateStr).toLocaleDateString()
-}
-
 function AdminMessages() {
   const [messages, setMessages] = useState([])
   const [selected, setSelected] = useState(null)
@@ -17,11 +9,9 @@ function AdminMessages() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [adminId, setAdminId] = useState(null)
-  const [readConversations, setReadConversations] = useState(new Set())
   const [, setTick] = useState(0)
   const bottomRef = useRef(null)
 
-  // Tick every 30s to refresh timeAgo
   useEffect(() => {
     const interval = setInterval(() => setTick(t => t + 1), 30000)
     return () => clearInterval(interval)
@@ -46,7 +36,6 @@ function AdminMessages() {
     init()
   }, [loadMessages])
 
-  // Real-time subscription
   useEffect(() => {
     const channel = supabase
       .channel('admin-messages')
@@ -62,15 +51,19 @@ function AdminMessages() {
     return () => supabase.removeChannel(channel)
   }, [loadMessages])
 
-  // Scroll to bottom when conversation updates
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, selected])
 
-  const selectConversation = (convo) => {
+  const selectConversation = async (convo) => {
     setSelected(convo)
-    // Mark this conversation as read
-    setReadConversations(prev => new Set([...prev, convo.customerId]))
+    await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('sender_id', convo.customerId)
+      .eq('is_read', false)
+    const data = await loadMessages()
+    setMessages(data)
   }
 
   const handleReply = async () => {
@@ -80,6 +73,7 @@ function AdminMessages() {
       sender_id: adminId,
       receiver_id: selected.customerId,
       content: reply.trim(),
+      is_read: true,
     })
     const data = await loadMessages()
     setMessages(data)
@@ -87,7 +81,6 @@ function AdminMessages() {
     setSending(false)
   }
 
-  // Build conversations list
   const conversations = (() => {
     if (!adminId) return []
     const map = {}
@@ -114,8 +107,9 @@ function AdminMessages() {
 
     return Object.values(map)
       .map(convo => {
-        const isRead = readConversations.has(convo.customerId)
-        const unreadCount = isRead ? 0 : convo.messages.filter(m => m.sender_id !== adminId).length
+        const unreadCount = convo.messages.filter(m =>
+          m.sender_id !== adminId && m.is_read === false
+        ).length
         return { ...convo, unreadCount }
       })
       .sort((a, b) => new Date(b.lastTime) - new Date(a.lastTime))
@@ -136,7 +130,6 @@ function AdminMessages() {
 
       <div style={{ marginLeft: '230px', flex: 1, display: 'flex', flexDirection: 'column' }}>
 
-        {/* Topbar */}
         <div style={{ padding: '14px 28px', borderBottom: '1px solid #111', background: '#080808', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ flex: 1 }}>
             <h1 style={{ fontSize: '18px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -199,7 +192,7 @@ function AdminMessages() {
                                 {convo.customerProfile?.full_name || convo.customerProfile?.email || 'Unknown'}
                               </div>
                               <div style={{ fontSize: '10px', color: hasUnread ? '#a855f7' : '#333', fontWeight: hasUnread ? '600' : '400', flexShrink: 0, marginLeft: '6px' }}>
-                                {timeAgo(convo.lastTime)}
+                                {new Date(convo.lastTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </div>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -229,7 +222,6 @@ function AdminMessages() {
                   </div>
                 ) : (
                   <>
-                    {/* Chat Header */}
                     <div style={{ padding: '14px 18px', borderBottom: '1px solid #111', display: 'flex', alignItems: 'center', gap: '12px', background: '#0d0d0d' }}>
                       <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: '#1a0a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', color: '#a855f7', fontWeight: '800', border: '2px solid #a855f755' }}>
                         {selected.customerProfile?.full_name?.[0]?.toUpperCase() || '?'}
@@ -244,7 +236,6 @@ function AdminMessages() {
                       </div>
                     </div>
 
-                    {/* Messages */}
                     <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {conversation.length === 0 ? (
                         <div style={{ textAlign: 'center', color: '#333', fontSize: '12px', marginTop: '2rem' }}>No messages yet</div>
@@ -270,7 +261,6 @@ function AdminMessages() {
                       <div ref={bottomRef} />
                     </div>
 
-                    {/* Reply Box */}
                     <div style={{ padding: '12px 16px', borderTop: '1px solid #111', display: 'flex', gap: '8px' }}>
                       <input
                         value={reply}
