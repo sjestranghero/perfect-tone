@@ -10,6 +10,7 @@ function AdminProducts() {
   const [editProduct, setEditProduct] = useState(null)
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [form, setForm] = useState({ name: '', description: '', price: '', stock: '', category: 'Guitars' })
 
   useEffect(() => {
@@ -89,39 +90,51 @@ function AdminProducts() {
 
   return (
     <div style={{ display: 'flex', backgroundColor: '#050505', minHeight: '100vh', fontFamily: "'Segoe UI', sans-serif", color: '#fff' }}>
-      <AdminSidebar active="Products" />
 
-      <div style={{ marginLeft: '230px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      {sidebarOpen && (
+        <div onClick={() => setSidebarOpen(false)} className="mobile-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 40, display: 'none' }} />
+      )}
+
+      <div className="mobile-sidebar-wrapper" style={{ position: 'fixed', top: 0, left: sidebarOpen ? 0 : '-230px', height: '100vh', zIndex: 50, transition: 'left 0.3s ease', width: '230px' }}>
+        <AdminSidebar active="Products" onClose={() => setSidebarOpen(false)} />
+      </div>
+
+      <div className="desktop-sidebar-spacer" style={{ width: '230px', flexShrink: 0 }} />
+
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
         {/* Topbar */}
-        <div style={{ padding: '16px 28px', borderBottom: '1px solid #111', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#080808' }}>
-          <div>
-            <h1 style={{ fontSize: '18px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              Manage <span style={{ color: '#22c55e' }}>Products</span>
-            </h1>
-            <p style={{ fontSize: '11px', color: '#444', marginTop: '2px' }}>{products.length} products in catalog</p>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid #111', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#080808', position: 'sticky', top: 0, zIndex: 30 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="hamburger-btn" style={{ background: '#111', border: '1px solid #222', borderRadius: '8px', padding: '7px 10px', cursor: 'pointer', color: '#fff', fontSize: '16px', display: 'none', lineHeight: 1 }}>☰</button>
+            <div>
+              <h1 style={{ fontSize: '16px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Manage <span style={{ color: '#22c55e' }}>Products</span>
+              </h1>
+              <p style={{ fontSize: '10px', color: '#444', marginTop: '1px' }}>{products.length} products in catalog</p>
+            </div>
           </div>
           <button onClick={() => { setShowForm(!showForm); setEditProduct(null); setForm({ name: '', description: '', price: '', stock: '', category: 'Guitars' }); setImagePreview(null) }} style={{
             background: showForm ? '#1a1a1a' : '#22c55e',
             color: showForm ? '#888' : '#000',
             border: showForm ? '1px solid #333' : 'none',
-            borderRadius: '8px', padding: '8px 18px',
-            fontSize: '12px', fontWeight: '700', cursor: 'pointer', textTransform: 'uppercase',
-          }}>{showForm ? 'Cancel' : '+ Add Product'}</button>
+            borderRadius: '8px', padding: '8px 14px',
+            fontSize: '11px', fontWeight: '700', cursor: 'pointer', textTransform: 'uppercase', whiteSpace: 'nowrap',
+          }}>{showForm ? 'Cancel' : '+ Add'}</button>
         </div>
 
-        <div style={{ padding: '24px 28px' }}>
+        <div style={{ padding: '16px' }}>
 
           {/* Add/Edit Form */}
           {showForm && (
-            <div style={{ background: '#0a0a0a', border: '1px solid #22c55e22', borderRadius: '14px', padding: '20px', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+            <div style={{ background: '#0a0a0a', border: '1px solid #22c55e22', borderRadius: '14px', padding: '16px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                 <div style={{ width: '4px', height: '20px', background: '#22c55e', borderRadius: '4px' }} />
                 <h2 style={{ fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#22c55e' }}>
                   {editProduct ? 'Edit Product' : 'Add New Product'}
                 </h2>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div className="form-grid" style={{ display: 'grid', gap: '12px' }}>
                 <div>
                   <label style={labelStyle}>Product Name</label>
                   <input style={inputStyle} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Fender Stratocaster" />
@@ -159,7 +172,7 @@ function AdminProducts() {
             </div>
           )}
 
-          {/* Products Table */}
+          {/* Products List */}
           {loading ? (
             <div style={{ color: '#22c55e', fontSize: '14px' }}>Loading products...</div>
           ) : products.length === 0 ? (
@@ -169,32 +182,59 @@ function AdminProducts() {
             </div>
           ) : (
             <div style={{ background: '#0a0a0a', border: '1px solid #151515', borderRadius: '14px', overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 110px 100px 70px 120px', padding: '10px 18px', background: '#0d0d0d', borderBottom: '1px solid #111' }}>
+
+              {/* Desktop table header */}
+              <div className="table-header" style={{ display: 'grid', gridTemplateColumns: '60px 1fr 110px 100px 70px 120px', padding: '10px 18px', background: '#0d0d0d', borderBottom: '1px solid #111' }}>
                 {['Image', 'Product', 'Category', 'Price', 'Stock', 'Actions'].map(h => (
                   <div key={h} style={{ fontSize: '10px', color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: '600' }}>{h}</div>
                 ))}
               </div>
+
               {products.map(product => (
-                <div key={product.id} style={{ display: 'grid', gridTemplateColumns: '60px 1fr 110px 100px 70px 120px', padding: '14px 18px', borderBottom: '1px solid #0d0d0d', alignItems: 'center' }}>
-                  <div>
-                    {product.image_url ? (
-                      <img src={product.image_url} alt={product.name} style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #1a1a1a' }} />
-                    ) : (
-                      <div style={{ width: '42px', height: '42px', background: '#111', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', border: '1px solid #1a1a1a' }}>🎸</div>
-                    )}
+                <div key={product.id}>
+                  {/* Desktop row */}
+                  <div className="desktop-row" style={{ display: 'grid', gridTemplateColumns: '60px 1fr 110px 100px 70px 120px', padding: '14px 18px', borderBottom: '1px solid #0d0d0d', alignItems: 'center' }}>
+                    <div>
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #1a1a1a' }} />
+                      ) : (
+                        <div style={{ width: '42px', height: '42px', background: '#111', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', border: '1px solid #1a1a1a' }}>🎸</div>
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: '#ddd' }}>{product.name}</div>
+                      <div style={{ fontSize: '11px', color: '#444', marginTop: '2px' }}>{product.description?.slice(0, 45)}...</div>
+                    </div>
+                    <div><span style={{ background: '#0d2d0d', color: '#22c55e', padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' }}>{product.category}</span></div>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#22c55e' }}>₱{product.price?.toLocaleString()}</div>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: product.stock > 0 ? '#22c55e' : '#ef4444' }}>{product.stock}</div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button onClick={() => handleEdit(product)} style={{ background: '#0a1a3a', color: '#3b82f6', border: '1px solid #3b82f633', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>Edit</button>
+                      <button onClick={() => handleDelete(product.id)} style={{ background: '#2d0a0a', color: '#ef4444', border: '1px solid #ef444433', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>Del</button>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#ddd' }}>{product.name}</div>
-                    <div style={{ fontSize: '11px', color: '#444', marginTop: '2px' }}>{product.description?.slice(0, 45)}...</div>
-                  </div>
-                  <div>
-                    <span style={{ background: '#0d2d0d', color: '#22c55e', padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' }}>{product.category}</span>
-                  </div>
-                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#22c55e' }}>₱{product.price?.toLocaleString()}</div>
-                  <div style={{ fontSize: '13px', fontWeight: '600', color: product.stock > 0 ? '#22c55e' : '#ef4444' }}>{product.stock}</div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button onClick={() => handleEdit(product)} style={{ background: '#0a1a3a', color: '#3b82f6', border: '1px solid #3b82f633', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>Edit</button>
-                    <button onClick={() => handleDelete(product.id)} style={{ background: '#2d0a0a', color: '#ef4444', border: '1px solid #ef444433', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>Del</button>
+
+                  {/* Mobile card */}
+                  <div className="mobile-card" style={{ display: 'none', padding: '14px 16px', borderBottom: '1px solid #0d0d0d' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} style={{ width: '56px', height: '56px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #1a1a1a', flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: '56px', height: '56px', background: '#111', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', border: '1px solid #1a1a1a', flexShrink: 0 }}>🎸</div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '13px', fontWeight: '700', color: '#ddd', marginBottom: '4px' }}>{product.name}</div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '6px' }}>
+                          <span style={{ background: '#0d2d0d', color: '#22c55e', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: '600' }}>{product.category}</span>
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: '#22c55e' }}>₱{product.price?.toLocaleString()}</span>
+                          <span style={{ fontSize: '11px', color: product.stock > 0 ? '#22c55e' : '#ef4444' }}>Stock: {product.stock}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button onClick={() => handleEdit(product)} style={{ background: '#0a1a3a', color: '#3b82f6', border: '1px solid #3b82f633', borderRadius: '6px', padding: '5px 12px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>Edit</button>
+                          <button onClick={() => handleDelete(product.id)} style={{ background: '#2d0a0a', color: '#ef4444', border: '1px solid #ef444433', borderRadius: '6px', padding: '5px 12px', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>Delete</button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -202,6 +242,29 @@ function AdminProducts() {
           )}
         </div>
       </div>
+
+      <style>{`
+        @media (min-width: 769px) {
+          .mobile-sidebar-wrapper { left: 0 !important; position: fixed !important; }
+          .desktop-sidebar-spacer { display: block !important; }
+          .hamburger-btn { display: none !important; }
+          .mobile-overlay { display: none !important; }
+          .form-grid { grid-template-columns: 1fr 1fr; }
+          .table-header { display: grid !important; }
+          .desktop-row { display: grid !important; }
+          .mobile-card { display: none !important; }
+        }
+        @media (max-width: 768px) {
+          .mobile-sidebar-wrapper { position: fixed !important; }
+          .desktop-sidebar-spacer { display: none !important; }
+          .hamburger-btn { display: block !important; }
+          .mobile-overlay { display: block !important; }
+          .form-grid { grid-template-columns: 1fr; }
+          .table-header { display: none !important; }
+          .desktop-row { display: none !important; }
+          .mobile-card { display: block !important; }
+        }
+      `}</style>
     </div>
   )
 }
