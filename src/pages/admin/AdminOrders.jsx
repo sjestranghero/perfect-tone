@@ -11,21 +11,44 @@ function AdminOrders() {
 
   useEffect(() => {
     const fetchOrders = async () => {
+      // Fetch orders with order_items and nested product details
       const { data, error } = await supabase
         .from('orders')
-        .select('*, order_items(*, products(name, image_url))')
+        .select(`
+          *,
+          order_items (
+            id,
+            quantity,
+            price,
+            product_id,
+            products (
+              id,
+              name,
+              image_url,
+              category
+            )
+          )
+        `)
         .order('created_at', { ascending: false })
 
       if (error) { console.error('Error fetching orders:', error); setLoading(false); return }
 
+      // Enrich with profile data
       const enriched = await Promise.all(
         (data || []).map(async (order) => {
           try {
-            const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', order.user_id).single()
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name, email')
+              .eq('id', order.user_id)
+              .single()
             return { ...order, profiles: profile || null }
-          } catch { return { ...order, profiles: null } }
+          } catch {
+            return { ...order, profiles: null }
+          }
         })
       )
+
       setOrders(enriched)
       setLoading(false)
     }
@@ -49,12 +72,10 @@ function AdminOrders() {
     return map[status] || { bg: '#11111122', color: '#888', border: '#88888833' }
   }
 
-  // Parse customer info from the notes field
   const parseNotes = (notes) => {
     if (!notes) return {}
-    const lines = notes.split('\n')
     const result = {}
-    lines.forEach(line => {
+    notes.split('\n').forEach(line => {
       if (line.startsWith('Name: ')) result.name = line.replace('Name: ', '')
       else if (line.startsWith('Email: ')) result.email = line.replace('Email: ', '')
       else if (line.startsWith('Phone: ')) result.phone = line.replace('Phone: ', '')
@@ -102,6 +123,7 @@ function AdminOrders() {
             {statuses.map(s => {
               const st = statusStyle(s)
               const isActive = filter === s
+              const count = s === 'All' ? orders.length : orders.filter(o => o.status === s).length
               return (
                 <button key={s} onClick={() => setFilter(s)} style={{
                   background: isActive ? (s === 'All' ? '#22c55e' : st.bg) : '#0a0a0a',
@@ -109,7 +131,9 @@ function AdminOrders() {
                   border: isActive ? `1px solid ${s === 'All' ? '#22c55e' : st.border}` : '1px solid #151515',
                   borderRadius: '20px', padding: '5px 12px', fontSize: '10px', fontWeight: '600',
                   cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em',
-                }}>{s}</button>
+                }}>
+                  {s} {count > 0 && <span style={{ opacity: 0.7 }}>({count})</span>}
+                </button>
               )
             })}
           </div>
@@ -122,46 +146,53 @@ function AdminOrders() {
               <div style={{ color: '#444', fontSize: '13px' }}>No orders found</div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {filtered.map(order => {
                 const s = statusStyle(order.status)
                 const info = parseNotes(order.notes)
                 const isExpanded = expandedOrder === order.id
+                const itemCount = order.order_items?.length || 0
+                const totalQty = order.order_items?.reduce((sum, i) => sum + (i.quantity || 0), 0) || 0
 
                 return (
-                  <div key={order.id} style={{ background: '#0a0a0a', border: '1px solid #151515', borderRadius: '14px', overflow: 'hidden' }}>
+                  <div key={order.id} style={{ background: '#0a0a0a', border: `1px solid ${isExpanded ? '#22c55e22' : '#151515'}`, borderRadius: '14px', overflow: 'hidden', transition: 'border-color 0.2s' }}>
 
-                    {/* Order header row */}
-                    <div style={{ padding: '14px 16px', borderBottom: isExpanded ? '1px solid #111' : 'none', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                    {/* Order header */}
+                    <div style={{ padding: '14px 16px', borderBottom: isExpanded ? '1px solid #111' : 'none', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
 
-                      {/* Order ID + date */}
-                      <div style={{ minWidth: '100px' }}>
+                      {/* ID + date */}
+                      <div style={{ minWidth: '90px' }}>
                         <div style={{ fontSize: '12px', color: '#22c55e', fontWeight: '700' }}>#{order.id.slice(0, 8)}</div>
-                        <div style={{ fontSize: '10px', color: '#444', marginTop: '2px' }}>{new Date(order.created_at).toLocaleDateString()}</div>
+                        <div style={{ fontSize: '10px', color: '#444', marginTop: '1px' }}>{new Date(order.created_at).toLocaleDateString()}</div>
                       </div>
 
-                      {/* Customer info */}
-                      <div style={{ flex: 1, minWidth: '140px' }}>
+                      {/* Customer */}
+                      <div style={{ flex: 1, minWidth: '130px' }}>
                         <div style={{ fontSize: '13px', fontWeight: '600', color: '#ddd' }}>
                           {info.name || order.profiles?.full_name || `User ${order.user_id?.slice(0, 6)}`}
                         </div>
                         <div style={{ fontSize: '11px', color: '#555', marginTop: '1px' }}>
                           {info.email || order.profiles?.email || '—'}
                         </div>
-                        {info.phone && <div style={{ fontSize: '11px', color: '#555' }}>{info.phone}</div>}
+                        {info.phone && <div style={{ fontSize: '11px', color: '#444' }}>{info.phone}</div>}
+                      </div>
+
+                      {/* Items count badge */}
+                      <div style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '20px', padding: '3px 10px', fontSize: '10px', color: '#888', whiteSpace: 'nowrap' }}>
+                        🛒 {itemCount} item{itemCount !== 1 ? 's' : ''} · qty {totalQty}
                       </div>
 
                       {/* Total */}
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#22c55e', minWidth: '80px' }}>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#22c55e', minWidth: '75px', textAlign: 'right' }}>
                         ₱{order.total?.toLocaleString()}
                       </div>
 
                       {/* Status badge */}
-                      <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
+                      <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', background: s.bg, color: s.color, border: `1px solid ${s.border}`, whiteSpace: 'nowrap' }}>
                         {order.status}
                       </span>
 
-                      {/* Update status */}
+                      {/* Update status select */}
                       <select value={order.status} onChange={e => updateStatus(order.id, e.target.value)}
                         style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '6px', padding: '6px 8px', color: '#ddd', fontSize: '11px', cursor: 'pointer', outline: 'none' }}>
                         {['pending', 'processing', 'shipped', 'completed', 'cancelled'].map(st => (
@@ -169,21 +200,23 @@ function AdminOrders() {
                         ))}
                       </select>
 
-                      {/* Expand toggle */}
+                      {/* Expand button */}
                       <button onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
-                        style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '6px', padding: '6px 10px', color: '#888', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        style={{ background: isExpanded ? '#0d2d0d' : '#111', border: `1px solid ${isExpanded ? '#22c55e44' : '#1a1a1a'}`, borderRadius: '6px', padding: '6px 10px', color: isExpanded ? '#22c55e' : '#888', fontSize: '11px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         {isExpanded ? 'Hide ▲' : 'Details ▼'}
                       </button>
                     </div>
 
                     {/* Expanded details */}
                     {isExpanded && (
-                      <div style={{ padding: '14px 16px', display: 'grid', gap: '14px' }} className="order-details-grid">
+                      <div style={{ padding: '14px 16px', display: 'grid', gap: '12px' }} className="order-details-grid">
 
-                        {/* Customer details card */}
-                        <div style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', borderRadius: '10px', padding: '12px' }}>
-                          <div style={{ fontSize: '10px', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '700', marginBottom: '10px' }}>👤 Customer Details</div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {/* Customer details */}
+                        <div style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', borderRadius: '10px', padding: '14px' }}>
+                          <div style={{ fontSize: '10px', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '700', marginBottom: '12px' }}>
+                            👤 Customer Details
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                             {[
                               { label: 'Full Name', value: info.name || order.profiles?.full_name || '—' },
                               { label: 'Email', value: info.email || order.profiles?.email || '—' },
@@ -192,31 +225,44 @@ function AdminOrders() {
                               ...(info.extra ? [{ label: 'Notes', value: info.extra }] : []),
                             ].map(row => (
                               <div key={row.label} style={{ display: 'flex', gap: '8px', fontSize: '12px' }}>
-                                <span style={{ color: '#555', minWidth: '70px', flexShrink: 0 }}>{row.label}:</span>
+                                <span style={{ color: '#555', minWidth: '72px', flexShrink: 0 }}>{row.label}:</span>
                                 <span style={{ color: '#ccc' }}>{row.value}</span>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        {/* Order items card */}
-                        <div style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', borderRadius: '10px', padding: '12px' }}>
-                          <div style={{ fontSize: '10px', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '700', marginBottom: '10px' }}>📦 Order Items</div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {order.order_items?.map(item => (
-                              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: '#111', overflow: 'hidden', flexShrink: 0 }}>
-                                  {item.products?.image_url
-                                    ? <img src={item.products.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>🎸</div>
-                                  }
-                                </div>
-                                <div style={{ flex: 1, fontSize: '12px', color: '#ccc' }}>{item.products?.name}</div>
-                                <div style={{ fontSize: '11px', color: '#555' }}>x{item.quantity}</div>
-                                <div style={{ fontSize: '12px', fontWeight: '700', color: '#22c55e' }}>₱{item.price?.toLocaleString()}</div>
-                              </div>
-                            ))}
+                        {/* Order items */}
+                        <div style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', borderRadius: '10px', padding: '14px' }}>
+                          <div style={{ fontSize: '10px', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '700', marginBottom: '12px' }}>
+                            📦 Order Items ({itemCount})
                           </div>
+                          {itemCount === 0 ? (
+                            <div style={{ color: '#444', fontSize: '12px' }}>No items found</div>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              {order.order_items.map(item => (
+                                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', background: '#111', borderRadius: '8px' }}>
+                                  <div style={{ width: '40px', height: '40px', borderRadius: '6px', background: '#1a1a1a', overflow: 'hidden', flexShrink: 0 }}>
+                                    {item.products?.image_url
+                                      ? <img src={item.products.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                      : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>🎸</div>
+                                    }
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#ddd' }}>{item.products?.name || 'Unknown product'}</div>
+                                    {item.products?.category && <div style={{ fontSize: '10px', color: '#555', marginTop: '1px' }}>{item.products.category}</div>}
+                                  </div>
+                                  <div style={{ fontSize: '11px', color: '#555', flexShrink: 0 }}>×{item.quantity}</div>
+                                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#22c55e', flexShrink: 0 }}>₱{(item.price * item.quantity).toLocaleString()}</div>
+                                </div>
+                              ))}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 4px', borderTop: '1px solid #1a1a1a', marginTop: '4px' }}>
+                                <span style={{ fontSize: '12px', color: '#666' }}>Order Total</span>
+                                <span style={{ fontSize: '14px', fontWeight: '800', color: '#22c55e' }}>₱{order.total?.toLocaleString()}</span>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

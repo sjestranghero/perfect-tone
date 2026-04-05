@@ -36,7 +36,6 @@ function Home() {
       <div style={{ position: 'relative', width: '100%', minHeight: 'clamp(320px, 60vw, 580px)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
         <img src={brandsBanner} alt="Brands" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center' }} />
         <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.88) 100%)' }} />
-
         <div style={{ position: 'relative', zIndex: 2, textAlign: 'center', padding: '3rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
           <div style={{ display: 'inline-block', background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontSize: '0.72rem', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', padding: '0.3rem 1rem', borderRadius: '20px', border: '1px solid #22c55e88' }}>
             Welcome to Perfect Tone PH
@@ -51,14 +50,11 @@ function Home() {
             <button onClick={() => navigate('/catalog')} style={{ backgroundColor: '#22c55e', color: '#000', padding: '0.75rem 2rem', borderRadius: '8px', border: 'none', fontWeight: '800', fontSize: '0.95rem', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em', boxShadow: '0 0 24px rgba(34,197,94,0.45)' }}>Shop Now</button>
             <button onClick={() => navigate('/catalog')} style={{ backgroundColor: 'transparent', color: '#fff', padding: '0.75rem 2rem', borderRadius: '8px', border: '1.5px solid rgba(255,255,255,0.4)', fontWeight: '700', fontSize: '0.95rem', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em' }}>View Catalog</button>
           </div>
-          {/* Social icons */}
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-            <a href="https://www.facebook.com/PerfectTonePH" target="_blank" rel="noopener noreferrer"
-              style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', transition: 'background 0.2s' }}>
+            <a href="https://www.facebook.com/PerfectTonePH" target="_blank" rel="noopener noreferrer" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
             </a>
-            <a href="https://www.instagram.com/perfecttoneph/" target="_blank" rel="noopener noreferrer"
-              style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+            <a href="https://www.instagram.com/perfecttoneph/" target="_blank" rel="noopener noreferrer" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
             </a>
           </div>
@@ -100,30 +96,49 @@ function Home() {
 
       <div style={{ height: '1px', background: '#111', margin: '0 1.5rem' }} />
 
-      {/* Featured Products */}
+      {/* Featured Products — centered, max 3 cols, never looks incomplete */}
       <div style={{ textAlign: 'center', padding: '2rem 1.5rem 1rem' }}>
         <h2 style={{ fontSize: 'clamp(1.2rem, 5vw, 1.6rem)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Featured <span style={{ color: '#22c55e' }}>Products</span>
         </h2>
+        <p style={{ color: '#555', fontSize: '0.85rem', marginTop: '0.3rem' }}>Handpicked gear just for you</p>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '0.8rem', padding: '0 1.5rem 2.5rem' }}>
+
+      <div style={{ padding: '0 1.5rem 2.5rem', maxWidth: '1000px', margin: '0 auto' }}>
         {featured.length === 0 ? (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', color: '#444', padding: '2rem', fontSize: '13px' }}>No products yet. Add some in the admin panel!</div>
-        ) : featured.map(product => (
-          <div key={product.id} style={{ backgroundColor: '#0a0a0a', border: '1px solid #151515', borderRadius: '14px', overflow: 'hidden' }}>
-            <div style={{ height: '170px', backgroundColor: '#0d0d0d', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              {product.image_url ? <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '48px' }}>🎸</span>}
-            </div>
-            <div style={{ padding: '0.8rem' }}>
-              <div style={{ fontSize: '0.7rem', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600', marginBottom: '0.2rem' }}>{product.category}</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '0.4rem', color: '#ddd' }}>{product.name}</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '1rem', fontWeight: '800', color: '#22c55e' }}>₱{product.price?.toLocaleString()}</span>
-                <button onClick={() => navigate('/catalog')} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', borderRadius: '6px', padding: '0.35rem 0.8rem', fontSize: '0.75rem', fontWeight: '700', cursor: 'pointer' }}>Add to Cart</button>
+          <div style={{ textAlign: 'center', color: '#444', padding: '2rem', fontSize: '13px' }}>No products yet. Add some in the admin panel!</div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${Math.min(featured.length, 3)}, 1fr)`,
+            gap: '1rem',
+            justifyContent: 'center',
+          }}>
+            {featured.map(product => (
+              <div key={product.id} style={{ backgroundColor: '#0a0a0a', border: '1px solid #151515', borderRadius: '14px', overflow: 'hidden' }}>
+                <div style={{ height: '200px', backgroundColor: '#0d0d0d', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  {product.image_url
+                    ? <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <span style={{ fontSize: '48px' }}>🎸</span>}
+                </div>
+                <div style={{ padding: '1rem' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600', marginBottom: '0.2rem' }}>{product.category}</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.3rem', color: '#ddd' }}>{product.name}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.8rem', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{product.description}</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: '800', color: '#22c55e' }}>₱{product.price?.toLocaleString()}</span>
+                    <button onClick={() => navigate('/catalog')} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}>Add to Cart</button>
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
-        ))}
+        )}
+        <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+          <button onClick={() => navigate('/catalog')} style={{ background: 'transparent', color: '#22c55e', border: '1px solid #22c55e44', borderRadius: '8px', padding: '0.6rem 2rem', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            View All Products →
+          </button>
+        </div>
       </div>
 
       {/* Footer */}
@@ -133,12 +148,10 @@ function Home() {
             <img src={logo} alt="Perfect Tone" style={{ height: '60px', objectFit: 'contain', marginBottom: '0.8rem' }} />
             <p style={{ color: '#666', fontSize: '0.82rem', lineHeight: 1.7 }}>Perfect Tone PH is your go-to shop for premium guitars, pedals, amplifiers, and accessories in the Philippines.</p>
             <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.8rem' }}>
-              <a href="https://www.facebook.com/PerfectTonePH" target="_blank" rel="noopener noreferrer"
-                style={{ width: '34px', height: '34px', borderRadius: '8px', background: '#1a1a1a', border: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+              <a href="https://www.facebook.com/PerfectTonePH" target="_blank" rel="noopener noreferrer" style={{ width: '34px', height: '34px', borderRadius: '8px', background: '#1a1a1a', border: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="#22c55e"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
               </a>
-              <a href="https://www.instagram.com/perfecttoneph/" target="_blank" rel="noopener noreferrer"
-                style={{ width: '34px', height: '34px', borderRadius: '8px', background: '#1a1a1a', border: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+              <a href="https://www.instagram.com/perfecttoneph/" target="_blank" rel="noopener noreferrer" style={{ width: '34px', height: '34px', borderRadius: '8px', background: '#1a1a1a', border: '1px solid #222', display: 'flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
               </a>
             </div>
@@ -180,6 +193,12 @@ function Home() {
           </div>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .featured-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   )
 }
