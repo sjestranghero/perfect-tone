@@ -15,28 +15,51 @@ function Signup() {
   const handleSignup = async () => {
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signUp({
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName } }
     })
-    if (error) {
-      setError(error.message)
+
+    if (signUpError) {
+      setError(signUpError.message)
       setLoading(false)
       return
     }
-    navigate('/login')
+
+    // Insert into profiles table so name/email is available everywhere
+    if (data?.user) {
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: data.user.id,
+        full_name: fullName,
+        email: email,
+        phone: phone,
+        role: 'customer',
+      })
+      if (profileError) {
+        // If insert fails (e.g. profile already exists), try upsert
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          full_name: fullName,
+          email: email,
+          phone: phone,
+          role: 'customer',
+        })
+      }
+    }
+
     setLoading(false)
+    navigate('/login')
   }
 
   return (
     <div style={{ backgroundColor: '#000000', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Segoe UI', sans-serif" }}>
       <div style={{ backgroundColor: '#0d0d0d', border: '1px solid #22c55e', borderRadius: '16px', padding: '2.5rem', width: '100%', maxWidth: '420px' }}>
 
-        {/* Logo */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
-  <img src={logo} alt="Perfect Tone" style={{ width: '90px', height: '90px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #22c55e' }} />
-</div>
+          <img src={logo} alt="Perfect Tone" style={{ width: '90px', height: '90px', objectFit: 'cover', borderRadius: '50%', border: '2px solid #22c55e' }} />
+        </div>
 
         <h2 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: '800', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.3rem' }}>
           Create Account
