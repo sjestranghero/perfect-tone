@@ -16,13 +16,41 @@ function Navbar({ active, user, cartCount, onLogout }) {
 
   return (
     <>
-      <nav style={{ backgroundColor: '#080808', borderBottom: '1px solid #181818', padding: '0 1.5rem', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100 }}>
-        <img src={logo} alt="Perfect Tone" style={{ height: '50px', objectFit: 'contain', cursor: 'pointer' }} onClick={() => navigate('/')} />
+      <nav style={{
+        backgroundColor: '#080808',
+        borderBottom: '1px solid #181818',
+        padding: '0 1.2rem',
+        height: '60px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+      }}>
+        <img
+          src={logo}
+          alt="Perfect Tone"
+          style={{ height: '44px', objectFit: 'contain', cursor: 'pointer' }}
+          onClick={() => navigate('/')}
+        />
 
-        {/* Desktop nav */}
-        <div className="desktop-nav" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+        {/* Desktop nav — hidden on mobile via CSS */}
+        <div className="desktop-nav">
           {links.map(link => (
-            <a key={link.label} onClick={() => navigate(link.path)} href="#" style={{ color: link.label === active ? '#22c55e' : '#666', textDecoration: 'none', fontWeight: '500', fontSize: '0.88rem' }}>{link.label}</a>
+            <a
+              key={link.label}
+              onClick={(e) => { e.preventDefault(); navigate(link.path) }}
+              href="#"
+              style={{
+                color: link.label === active ? '#22c55e' : '#666',
+                textDecoration: 'none',
+                fontWeight: '500',
+                fontSize: '0.88rem',
+              }}
+            >
+              {link.label}
+            </a>
           ))}
           {cartCount !== undefined && (
             <div onClick={() => navigate('/cart')} style={{ background: '#111', border: '1px solid #1a1a1a', color: '#ddd', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
@@ -30,59 +58,109 @@ function Navbar({ active, user, cartCount, onLogout }) {
             </div>
           )}
           {user ? (
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <>
               <div onClick={() => navigate('/orders')} style={{ background: '#111', border: '1px solid #1a1a1a', color: '#ddd', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>My Orders</div>
-              {onLogout && <button onClick={onLogout} style={{ background: 'transparent', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', border: '1px solid #ef444433', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>Logout</button>}
-            </div>
+              {onLogout && (
+                <button onClick={onLogout} style={{ background: 'transparent', color: '#ef4444', padding: '6px 12px', borderRadius: '6px', border: '1px solid #ef444433', fontWeight: '700', fontSize: '12px', cursor: 'pointer' }}>Logout</button>
+              )}
+            </>
           ) : (
             <button onClick={() => navigate('/login')} style={{ backgroundColor: '#22c55e', color: '#000', padding: '7px 16px', borderRadius: '6px', border: 'none', fontWeight: '700', fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase' }}>Login</button>
           )}
         </div>
 
-        {/* Mobile right side */}
-        <div className="mobile-nav" style={{ display: 'none', alignItems: 'center', gap: '8px' }}>
+        {/* Mobile right side — cart + hamburger */}
+        <div className="mobile-nav">
           {cartCount !== undefined && (
             <div onClick={() => navigate('/cart')} style={{ background: '#111', border: '1px solid #1a1a1a', color: '#ddd', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
               🛒 <span style={{ color: '#22c55e' }}>{cartCount}</span>
             </div>
           )}
-          <button onClick={() => setMenuOpen(!menuOpen)} style={{ background: '#111', border: '1px solid #222', borderRadius: '8px', padding: '7px 10px', cursor: 'pointer', color: '#fff', fontSize: '18px', lineHeight: 1 }}>
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            style={{ background: '#111', border: '1px solid #222', borderRadius: '8px', padding: '7px 11px', cursor: 'pointer', color: '#fff', fontSize: '18px', lineHeight: 1 }}
+          >
             {menuOpen ? '✕' : '☰'}
           </button>
         </div>
       </nav>
 
-      {/* Mobile dropdown menu */}
+      {/* Mobile dropdown */}
       {menuOpen && (
-        <div className="mobile-menu" style={{ display: 'none', position: 'fixed', top: '64px', left: 0, right: 0, background: '#0a0a0a', borderBottom: '1px solid #181818', zIndex: 99, padding: '12px 0' }}>
+        <div className="mobile-menu" style={{
+          position: 'fixed',
+          top: '60px',
+          left: 0,
+          right: 0,
+          background: '#0a0a0a',
+          borderBottom: '1px solid #181818',
+          zIndex: 99,
+          padding: '8px 0',
+        }}>
           {links.map(link => (
-            <div key={link.label} onClick={() => { navigate(link.path); setMenuOpen(false) }} style={{ padding: '12px 20px', color: link.label === active ? '#22c55e' : '#aaa', fontSize: '14px', fontWeight: '600', cursor: 'pointer', borderBottom: '1px solid #111' }}>
+            <div
+              key={link.label}
+              onClick={() => { navigate(link.path); setMenuOpen(false) }}
+              style={{
+                padding: '13px 20px',
+                color: link.label === active ? '#22c55e' : '#aaa',
+                fontSize: '14px',
+                fontWeight: link.label === active ? '700' : '500',
+                cursor: 'pointer',
+                borderBottom: '1px solid #111',
+              }}
+            >
               {link.label}
             </div>
           ))}
-          <div style={{ padding: '12px 20px' }}>
+          <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {user ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div onClick={() => { navigate('/orders'); setMenuOpen(false) }} style={{ background: '#111', color: '#ddd', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', textAlign: 'center' }}>My Orders</div>
-                {onLogout && <button onClick={() => { onLogout(); setMenuOpen(false) }} style={{ background: 'transparent', color: '#ef4444', padding: '10px 14px', borderRadius: '8px', border: '1px solid #ef444433', fontWeight: '700', fontSize: '13px', cursor: 'pointer', width: '100%' }}>Logout</button>}
-              </div>
+              <>
+                <div
+                  onClick={() => { navigate('/orders'); setMenuOpen(false) }}
+                  style={{ background: '#111', color: '#ddd', padding: '11px 14px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', textAlign: 'center' }}
+                >
+                  My Orders
+                </div>
+                {onLogout && (
+                  <button
+                    onClick={() => { onLogout(); setMenuOpen(false) }}
+                    style={{ background: 'transparent', color: '#ef4444', padding: '11px 14px', borderRadius: '8px', border: '1px solid #ef444433', fontWeight: '700', fontSize: '13px', cursor: 'pointer', width: '100%' }}
+                  >
+                    Logout
+                  </button>
+                )}
+              </>
             ) : (
-              <button onClick={() => { navigate('/login'); setMenuOpen(false) }} style={{ width: '100%', backgroundColor: '#22c55e', color: '#000', padding: '10px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '14px', cursor: 'pointer', textTransform: 'uppercase' }}>Login</button>
+              <button
+                onClick={() => { navigate('/login'); setMenuOpen(false) }}
+                style={{ width: '100%', backgroundColor: '#22c55e', color: '#000', padding: '11px', borderRadius: '8px', border: 'none', fontWeight: '700', fontSize: '14px', cursor: 'pointer', textTransform: 'uppercase' }}
+              >
+                Login
+              </button>
             )}
           </div>
         </div>
       )}
 
       <style>{`
+        .desktop-nav {
+          display: none;
+          align-items: center;
+          gap: 1.4rem;
+        }
+        .mobile-nav {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .mobile-menu {
+          display: block;
+        }
         @media (min-width: 769px) {
           .desktop-nav { display: flex !important; }
           .mobile-nav { display: none !important; }
           .mobile-menu { display: none !important; }
-        }
-        @media (max-width: 768px) {
-          .desktop-nav { display: none !important; }
-          .mobile-nav { display: flex !important; }
-          .mobile-menu { display: block !important; }
         }
       `}</style>
     </>
