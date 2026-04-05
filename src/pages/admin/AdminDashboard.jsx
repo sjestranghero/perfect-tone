@@ -19,14 +19,24 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [adminName, setAdminName] = useState('Admin')
+  const [, setTick] = useState(0)
+
+  // Refresh timestamps every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
 
-      // Get admin name
       if (user) {
-        const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single()
         if (profile?.full_name) setAdminName(profile.full_name)
       }
 
@@ -44,7 +54,6 @@ function AdminDashboard() {
         customers: customers.count || 0,
       })
 
-      // Recent orders with profile join
       const { data: ordersData } = await supabase
         .from('orders')
         .select('*, profiles(full_name, email)')
@@ -52,10 +61,9 @@ function AdminDashboard() {
         .limit(5)
       setRecentOrders(ordersData || [])
 
-      // Build real activity feed from actual data
+      // Build real activity feed
       const activityItems = []
 
-      // Latest orders
       const { data: recentOrdersRaw } = await supabase
         .from('orders')
         .select('id, created_at, status, profiles(full_name)')
@@ -70,7 +78,6 @@ function AdminDashboard() {
         }
       })
 
-      // Latest messages
       const { data: recentMessages } = await supabase
         .from('messages')
         .select('id, created_at, sender:profiles!messages_sender_id_fkey(full_name, role)')
@@ -83,7 +90,6 @@ function AdminDashboard() {
         }
       })
 
-      // Latest customers
       const { data: recentCustomers } = await supabase
         .from('profiles')
         .select('full_name, created_at')
@@ -95,10 +101,8 @@ function AdminDashboard() {
         activityItems.push({ dot: '#f97316', text: `${c.full_name || 'New customer'} registered`, time: c.created_at })
       })
 
-      // Sort all activity by time, newest first
       activityItems.sort((a, b) => new Date(b.time) - new Date(a.time))
       setActivity(activityItems.slice(0, 6))
-
       setLoading(false)
     }
     fetchData()
@@ -137,7 +141,7 @@ function AdminDashboard() {
 
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
 
-        {/* ── Topbar ── */}
+        {/* Topbar */}
         <div style={{ padding: '0 20px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#08080a', borderBottom: '1px solid #141418', position: 'sticky', top: 0, zIndex: 30 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="ham-btn" style={{ background: '#111', border: '1px solid #222', borderRadius: '8px', padding: '7px 10px', cursor: 'pointer', color: '#fff', fontSize: '16px', display: 'none', lineHeight: 1 }}>☰</button>
@@ -149,8 +153,12 @@ function AdminDashboard() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ fontSize: '11px', color: '#555', marginRight: '4px' }}>Welcome, <span style={{ color: '#ddd', fontWeight: '600' }}>{adminName}</span></div>
-            <button onClick={() => navigate('/admin/products')} style={{ background: '#22c55e', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: '800', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em' }}>+ Add Product</button>
+            <div style={{ fontSize: '11px', color: '#555', marginRight: '4px' }}>
+              Welcome, <span style={{ color: '#ddd', fontWeight: '600' }}>{adminName}</span>
+            </div>
+            <button onClick={() => navigate('/admin/products')} style={{ background: '#22c55e', color: '#000', border: 'none', borderRadius: '8px', padding: '8px 14px', fontSize: '12px', fontWeight: '800', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              + Add Product
+            </button>
           </div>
         </div>
 
@@ -159,38 +167,26 @@ function AdminDashboard() {
             <div style={{ color: '#22c55e', fontSize: '14px', padding: '2rem' }}>Loading...</div>
           ) : (
             <>
-              {/* ── KPI Cards ── */}
+              {/* KPI Cards */}
               <div className="kpi-grid" style={{ display: 'grid', gap: '12px', marginBottom: '20px' }}>
                 {kpiCards.map(card => (
                   <div
                     key={card.label}
                     onClick={() => card.path && navigate(card.path)}
-                    style={{
-                      background: '#0a0a0c',
-                      border: `1px solid #1c1c22`,
-                      borderRadius: '16px',
-                      padding: '20px',
-                      cursor: card.path ? 'pointer' : 'default',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      transition: 'border-color 0.2s',
-                    }}
+                    style={{ background: '#0a0a0c', border: '1px solid #1c1c22', borderRadius: '16px', padding: '20px', cursor: card.path ? 'pointer' : 'default', position: 'relative', overflow: 'hidden' }}
                     onMouseEnter={e => { if (card.path) e.currentTarget.style.borderColor = card.border + '55' }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = '#1c1c22' }}
                   >
-                    {/* top accent bar */}
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: `linear-gradient(90deg, ${card.border}, transparent)` }} />
-                    {/* glow blob */}
                     <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '80px', height: '80px', borderRadius: '50%', background: card.border + '11', filter: 'blur(20px)' }} />
-
                     <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: card.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', marginBottom: '16px' }}>{card.icon}</div>
-                    <div style={{ fontSize: '32px', fontWeight: '900', color: card.color, lineHeight: 1, marginBottom: '6px', fontVariantNumeric: 'tabular-nums' }}>{card.value}</div>
+                    <div style={{ fontSize: '32px', fontWeight: '900', color: card.color, lineHeight: 1, marginBottom: '6px' }}>{card.value}</div>
                     <div style={{ fontSize: '11px', color: '#555', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600' }}>{card.label}</div>
                   </div>
                 ))}
               </div>
 
-              {/* ── Orders + Activity ── */}
+              {/* Orders + Activity */}
               <div className="main-grid" style={{ display: 'grid', gap: '16px', marginBottom: '20px' }}>
 
                 {/* Recent Orders */}
@@ -207,7 +203,7 @@ function AdminDashboard() {
                       <div
                         key={order.id}
                         onClick={() => navigate('/admin/orders')}
-                        style={{ padding: '14px 18px', borderBottom: i < recentOrders.length - 1 ? '1px solid #0f0f12' : 'none', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', transition: 'background 0.15s' }}
+                        style={{ padding: '14px 18px', borderBottom: i < recentOrders.length - 1 ? '1px solid #0f0f12' : 'none', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
                         onMouseEnter={e => e.currentTarget.style.background = '#111'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
@@ -228,7 +224,7 @@ function AdminDashboard() {
                   })}
                 </div>
 
-                {/* Real Activity Feed */}
+                {/* Activity Feed */}
                 <div style={{ background: '#0a0a0c', border: '1px solid #1c1c22', borderRadius: '16px', overflow: 'hidden' }}>
                   <div style={{ padding: '16px 18px', borderBottom: '1px solid #111', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#555' }}>Recent Activity</div>
@@ -246,7 +242,7 @@ function AdminDashboard() {
                 </div>
               </div>
 
-              {/* ── Quick Actions ── */}
+              {/* Quick Actions */}
               <div style={{ marginBottom: '8px' }}>
                 <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#555', marginBottom: '12px' }}>Quick Actions</div>
                 <div className="qa-grid" style={{ display: 'grid', gap: '12px' }}>
@@ -258,7 +254,7 @@ function AdminDashboard() {
                     <div
                       key={card.title}
                       onClick={() => navigate(card.path)}
-                      style={{ background: '#0a0a0c', border: '1px solid #1c1c22', borderRadius: '14px', padding: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px', transition: 'border-color 0.2s, background 0.2s' }}
+                      style={{ background: '#0a0a0c', border: '1px solid #1c1c22', borderRadius: '14px', padding: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '14px' }}
                       onMouseEnter={e => { e.currentTarget.style.borderColor = card.accent + '44'; e.currentTarget.style.background = '#0f0f14' }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = '#1c1c22'; e.currentTarget.style.background = '#0a0a0c' }}
                     >
