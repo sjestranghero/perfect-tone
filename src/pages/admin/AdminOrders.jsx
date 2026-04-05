@@ -11,41 +11,55 @@ function AdminOrders() {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      // Fetch orders with order_items and nested product details
-      const { data, error } = await supabase
+      // Step 1: Fetch orders
+      const { data: ordersRaw, error } = await supabase
         .from('orders')
-        .select(`
-          *,
-          order_items (
-            id,
-            quantity,
-            price,
-            product_id,
-            products (
-              id,
-              name,
-              image_url,
-              category
-            )
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
-      if (error) { console.error('Error fetching orders:', error); setLoading(false); return }
+      if (error) { console.error('Orders error:', error); setLoading(false); return }
 
-      // Enrich with profile data
+      // Step 2: Fetch all order_items for these orders
+      const orderIds = ordersRaw.map(o => o.id)
+      const { data: allItems, error: itemsError } = await supabase
+        .from('order_items')
+        .select('*')
+        .in('order_id', orderIds)
+
+      if (itemsError) console.error('Order items error:', itemsError)
+
+      // Step 3: Fetch products for those items
+      const productIds = [...new Set((allItems || []).map(i => i.product_id).filter(Boolean))]
+      let productsMap = {}
+      if (productIds.length > 0) {
+        const { data: products, error: prodError } = await supabase
+          .from('products')
+          .select('id, name, image_url, category, price')
+          .in('id', productIds)
+        if (prodError) console.error('Products error:', prodError)
+        ;(products || []).forEach(p => { productsMap[p.id] = p })
+      }
+
+      // Step 4: Attach items+products to each order & enrich with profile
       const enriched = await Promise.all(
-        (data || []).map(async (order) => {
+        (ordersRaw || []).map(async (order) => {
+          const items = (allItems || [])
+            .filter(i => i.order_id === order.id)
+            .map(i => ({ ...i, products: productsMap[i.product_id] || null }))
+
+          let profile = null
           try {
-            const { data: profile } = await supabase
+            const { data: p } = await supabase
               .from('profiles')
-              .select('full_name, email')
+              .select('full_name, email, phone')
               .eq('id', order.user_id)
               .single()
-            return { ...order, profiles: profile || null }
-          } catch {
-            return { ...order, profiles: null }
+            profile = p
+          } catch (e) {
+            console.error('Profile fetch error:', e)
           }
+
+          return { ...order, order_items: items, profiles: profile }
         })
       )
 
@@ -76,12 +90,17 @@ function AdminOrders() {
     if (!notes) return {}
     const result = {}
     notes.split('\n').forEach(line => {
-      if (line.startsWith('Name: ')) result.name = line.replace('Name: ', '')
-      else if (line.startsWith('Email: ')) result.email = line.replace('Email: ', '')
-      else if (line.startsWith('Phone: ')) result.phone = line.replace('Phone: ', '')
+      if (line.startsWith('Name: '))    result.name    = line.replace('Name: ', '')
+      else if (line.startsWith('Email: '))   result.email   = line.replace('Email: ', '')
+      else if (line.startsWith('Phone: '))   result.phone   = line.replace('Phone: ', '')
       else if (line.startsWith('Address: ')) result.address = line.replace('Address: ', '')
-      else if (line.startsWith('Notes: ')) result.extra = line.replace('Notes: ', '')
+      else if (line.startsWith('Notes: '))   result.extra   = line.replace('Notes: ', '')
     })
+    // notes field in cart is "Address: xxx\nNotes: yyy"
+    if (!result.address && notes.includes('Address:')) {
+      const match = notes.match(/Address:\s*(.+?)(\n|$)/)
+      if (match) result.address = match[1].trim()
+    }
     return result
   }
 
@@ -154,45 +173,40 @@ function AdminOrders() {
                 const itemCount = order.order_items?.length || 0
                 const totalQty = order.order_items?.reduce((sum, i) => sum + (i.quantity || 0), 0) || 0
 
+                // Best name/email: prefer parsed notes, fallback to profiles
+                const displayName    = info.name    || order.profiles?.full_name || `User ${order.user_id?.slice(0, 6)}`
+                const displayEmail   = info.email   || order.profiles?.email    || '—'
+                const displayPhone   = info.phone   || order.profiles?.phone    || '—'
+                const displayAddress = info.address || '—'
+
                 return (
                   <div key={order.id} style={{ background: '#0a0a0a', border: `1px solid ${isExpanded ? '#22c55e22' : '#151515'}`, borderRadius: '14px', overflow: 'hidden', transition: 'border-color 0.2s' }}>
 
-                    {/* Order header */}
+                    {/* Order header row */}
                     <div style={{ padding: '14px 16px', borderBottom: isExpanded ? '1px solid #111' : 'none', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
 
-                      {/* ID + date */}
                       <div style={{ minWidth: '90px' }}>
                         <div style={{ fontSize: '12px', color: '#22c55e', fontWeight: '700' }}>#{order.id.slice(0, 8)}</div>
                         <div style={{ fontSize: '10px', color: '#444', marginTop: '1px' }}>{new Date(order.created_at).toLocaleDateString()}</div>
                       </div>
 
-                      {/* Customer */}
                       <div style={{ flex: 1, minWidth: '130px' }}>
-                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#ddd' }}>
-                          {info.name || order.profiles?.full_name || `User ${order.user_id?.slice(0, 6)}`}
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#555', marginTop: '1px' }}>
-                          {info.email || order.profiles?.email || '—'}
-                        </div>
-                        {info.phone && <div style={{ fontSize: '11px', color: '#444' }}>{info.phone}</div>}
+                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#ddd' }}>{displayName}</div>
+                        <div style={{ fontSize: '11px', color: '#555', marginTop: '1px' }}>{displayEmail}</div>
                       </div>
 
-                      {/* Items count badge */}
                       <div style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '20px', padding: '3px 10px', fontSize: '10px', color: '#888', whiteSpace: 'nowrap' }}>
                         🛒 {itemCount} item{itemCount !== 1 ? 's' : ''} · qty {totalQty}
                       </div>
 
-                      {/* Total */}
                       <div style={{ fontSize: '14px', fontWeight: '800', color: '#22c55e', minWidth: '75px', textAlign: 'right' }}>
                         ₱{order.total?.toLocaleString()}
                       </div>
 
-                      {/* Status badge */}
                       <span style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', background: s.bg, color: s.color, border: `1px solid ${s.border}`, whiteSpace: 'nowrap' }}>
                         {order.status}
                       </span>
 
-                      {/* Update status select */}
                       <select value={order.status} onChange={e => updateStatus(order.id, e.target.value)}
                         style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '6px', padding: '6px 8px', color: '#ddd', fontSize: '11px', cursor: 'pointer', outline: 'none' }}>
                         {['pending', 'processing', 'shipped', 'completed', 'cancelled'].map(st => (
@@ -200,7 +214,6 @@ function AdminOrders() {
                         ))}
                       </select>
 
-                      {/* Expand button */}
                       <button onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                         style={{ background: isExpanded ? '#0d2d0d' : '#111', border: `1px solid ${isExpanded ? '#22c55e44' : '#1a1a1a'}`, borderRadius: '6px', padding: '6px 10px', color: isExpanded ? '#22c55e' : '#888', fontSize: '11px', fontWeight: '600', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         {isExpanded ? 'Hide ▲' : 'Details ▼'}
@@ -218,10 +231,10 @@ function AdminOrders() {
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
                             {[
-                              { label: 'Full Name', value: info.name || order.profiles?.full_name || '—' },
-                              { label: 'Email', value: info.email || order.profiles?.email || '—' },
-                              { label: 'Phone', value: info.phone || '—' },
-                              { label: 'Address', value: info.address || '—' },
+                              { label: 'Full Name', value: displayName },
+                              { label: 'Email',     value: displayEmail },
+                              { label: 'Phone',     value: displayPhone },
+                              { label: 'Address',   value: displayAddress },
                               ...(info.extra ? [{ label: 'Notes', value: info.extra }] : []),
                             ].map(row => (
                               <div key={row.label} style={{ display: 'flex', gap: '8px', fontSize: '12px' }}>
@@ -238,28 +251,30 @@ function AdminOrders() {
                             📦 Order Items ({itemCount})
                           </div>
                           {itemCount === 0 ? (
-                            <div style={{ color: '#444', fontSize: '12px' }}>No items found</div>
+                            <div style={{ color: '#555', fontSize: '12px', padding: '8px 0' }}>
+                              No items found — the order may have been placed before item tracking was set up.
+                            </div>
                           ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               {order.order_items.map(item => (
-                                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', background: '#111', borderRadius: '8px' }}>
-                                  <div style={{ width: '40px', height: '40px', borderRadius: '6px', background: '#1a1a1a', overflow: 'hidden', flexShrink: 0 }}>
+                                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: '#111', borderRadius: '8px' }}>
+                                  <div style={{ width: '42px', height: '42px', borderRadius: '6px', background: '#1a1a1a', overflow: 'hidden', flexShrink: 0 }}>
                                     {item.products?.image_url
                                       ? <img src={item.products.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                       : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>🎸</div>
                                     }
                                   </div>
                                   <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#ddd' }}>{item.products?.name || 'Unknown product'}</div>
+                                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#ddd' }}>{item.products?.name || `Product #${item.product_id?.slice(0,8)}`}</div>
                                     {item.products?.category && <div style={{ fontSize: '10px', color: '#555', marginTop: '1px' }}>{item.products.category}</div>}
                                   </div>
-                                  <div style={{ fontSize: '11px', color: '#555', flexShrink: 0 }}>×{item.quantity}</div>
-                                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#22c55e', flexShrink: 0 }}>₱{(item.price * item.quantity).toLocaleString()}</div>
+                                  <div style={{ fontSize: '11px', color: '#666', flexShrink: 0 }}>×{item.quantity}</div>
+                                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#22c55e', flexShrink: 0 }}>₱{(item.price * item.quantity).toLocaleString()}</div>
                                 </div>
                               ))}
-                              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 4px', borderTop: '1px solid #1a1a1a', marginTop: '4px' }}>
-                                <span style={{ fontSize: '12px', color: '#666' }}>Order Total</span>
-                                <span style={{ fontSize: '14px', fontWeight: '800', color: '#22c55e' }}>₱{order.total?.toLocaleString()}</span>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 4px', borderTop: '1px solid #1a1a1a', marginTop: '4px' }}>
+                                <span style={{ fontSize: '12px', color: '#555' }}>Order Total</span>
+                                <span style={{ fontSize: '15px', fontWeight: '800', color: '#22c55e' }}>₱{order.total?.toLocaleString()}</span>
                               </div>
                             </div>
                           )}
