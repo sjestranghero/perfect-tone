@@ -49,7 +49,6 @@ function Cart() {
 
     setPlacing(true)
 
-    // Store all customer info in the notes field so admin can see it
     const orderNotes = [
       `Name: ${fullName}`,
       `Email: ${email}`,
@@ -58,15 +57,37 @@ function Cart() {
       notes ? `Notes: ${notes}` : '',
     ].filter(Boolean).join('\n')
 
-    const { data: order, error } = await supabase.from('orders').insert({
-      user_id: user.id, total, status: 'pending',
-      notes: orderNotes,
-    }).select().single()
+    // Step 1: Create the order
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .insert({ user_id: user.id, total, status: 'pending', notes: orderNotes })
+      .select()
+      .single()
 
-    if (error) { alert('Error placing order'); setPlacing(false); return }
+    if (orderError) {
+      console.error('Order error:', orderError)
+      alert('Error placing order: ' + orderError.message)
+      setPlacing(false)
+      return
+    }
 
-    const items = cart.map(item => ({ order_id: order.id, product_id: item.id, quantity: item.quantity, price: item.price }))
-    await supabase.from('order_items').insert(items)
+    // Step 2: Insert order items
+    const items = cart.map(item => ({
+      order_id: order.id,
+      product_id: item.id,
+      quantity: item.quantity,
+      price: item.price,
+    }))
+
+    const { error: itemsError } = await supabase.from('order_items').insert(items)
+    if (itemsError) {
+      console.error('Items insert error:', itemsError)
+      alert('Error saving order items: ' + itemsError.message)
+      setPlacing(false)
+      return
+    }
+
+    // Step 3: Clear cart and redirect
     localStorage.removeItem('cart')
     setCart([])
     setPlacing(false)
@@ -125,7 +146,6 @@ function Cart() {
 
             {/* Order Summary + Form */}
             <div style={{ background: '#0a0a0a', border: '1px solid #151515', borderRadius: '14px', padding: '16px' }}>
-              {/* Summary */}
               <h2 style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888', marginBottom: '12px' }}>Order Summary</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
                 {cart.map(item => (
@@ -141,11 +161,9 @@ function Cart() {
                 <span style={{ fontSize: '18px', fontWeight: '800', color: '#22c55e' }}>₱{total.toLocaleString()}</span>
               </div>
 
-              {/* Customer Info section */}
+              {/* Customer Info */}
               <div style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
-                <div style={{ fontSize: '11px', fontWeight: '700', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
-                  👤 Customer Information
-                </div>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>👤 Customer Information</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div>
                     <label style={labelStyle}>Full Name <span style={{ color: '#ef4444' }}>*</span></label>
@@ -162,11 +180,9 @@ function Cart() {
                 </div>
               </div>
 
-              {/* Delivery Info section */}
+              {/* Delivery Info */}
               <div style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
-                <div style={{ fontSize: '11px', fontWeight: '700', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
-                  📦 Delivery Information
-                </div>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>📦 Delivery Information</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <div>
                     <label style={labelStyle}>Delivery Address <span style={{ color: '#ef4444' }}>*</span></label>
