@@ -10,6 +10,9 @@ function Cart() {
   const [user, setUser] = useState(null)
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
 
   useEffect(() => {
     const getUser = async () => {
@@ -39,19 +42,46 @@ function Cart() {
   const placeOrder = async () => {
     if (!user) return navigate('/login')
     if (cart.length === 0) return alert('Your cart is empty!')
-    if (!address) return alert('Please enter your delivery address!')
+    if (!fullName.trim()) return alert('Please enter your full name!')
+    if (!email.trim()) return alert('Please enter your email address!')
+    if (!phone.trim()) return alert('Please enter your phone number!')
+    if (!address.trim()) return alert('Please enter your delivery address!')
+
     setPlacing(true)
+
+    // Store all customer info in the notes field so admin can see it
+    const orderNotes = [
+      `Name: ${fullName}`,
+      `Email: ${email}`,
+      `Phone: ${phone}`,
+      `Address: ${address}`,
+      notes ? `Notes: ${notes}` : '',
+    ].filter(Boolean).join('\n')
+
     const { data: order, error } = await supabase.from('orders').insert({
       user_id: user.id, total, status: 'pending',
-      notes: `Address: ${address}${notes ? `\nNotes: ${notes}` : ''}`,
+      notes: orderNotes,
     }).select().single()
+
     if (error) { alert('Error placing order'); setPlacing(false); return }
+
     const items = cart.map(item => ({ order_id: order.id, product_id: item.id, quantity: item.quantity, price: item.price }))
     await supabase.from('order_items').insert(items)
     localStorage.removeItem('cart')
     setCart([])
     setPlacing(false)
     navigate('/orders')
+  }
+
+  const inputStyle = {
+    width: '100%', background: '#111', border: '1px solid #1a1a1a',
+    borderRadius: '8px', padding: '10px 12px', color: '#fff',
+    fontSize: '13px', outline: 'none', boxSizing: 'border-box',
+  }
+
+  const labelStyle = {
+    color: '#555', fontSize: '11px', textTransform: 'uppercase',
+    letterSpacing: '0.08em', display: 'block', marginBottom: '6px', fontWeight: '600',
   }
 
   return (
@@ -93,8 +123,9 @@ function Cart() {
               ))}
             </div>
 
-            {/* Order Summary */}
+            {/* Order Summary + Form */}
             <div style={{ background: '#0a0a0a', border: '1px solid #151515', borderRadius: '14px', padding: '16px' }}>
+              {/* Summary */}
               <h2 style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#888', marginBottom: '12px' }}>Order Summary</h2>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
                 {cart.map(item => (
@@ -105,21 +136,47 @@ function Cart() {
                 ))}
               </div>
               <div style={{ height: '1px', background: '#151515', marginBottom: '12px' }} />
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
                 <span style={{ fontSize: '14px', fontWeight: '700', color: '#ddd' }}>Total</span>
                 <span style={{ fontSize: '18px', fontWeight: '800', color: '#22c55e' }}>₱{total.toLocaleString()}</span>
               </div>
 
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ color: '#555', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '6px', fontWeight: '600' }}>
-                  Delivery Address <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <textarea value={address} onChange={e => setAddress(e.target.value)} placeholder="Enter your full delivery address..." style={{ width: '100%', background: '#111', border: '1px solid #1a1a1a', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '13px', outline: 'none', resize: 'vertical', minHeight: '70px', boxSizing: 'border-box' }} />
+              {/* Customer Info section */}
+              <div style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
+                  👤 Customer Information
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div>
+                    <label style={labelStyle}>Full Name <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="e.g. Juan dela Cruz" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Email Address <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="e.g. juan@email.com" style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Phone Number <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="e.g. 09123456789" style={inputStyle} />
+                  </div>
+                </div>
               </div>
 
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ color: '#555', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: '6px', fontWeight: '600' }}>Order Notes (Optional)</label>
-                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any special instructions..." style={{ width: '100%', background: '#111', border: '1px solid #1a1a1a', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '13px', outline: 'none', resize: 'vertical', minHeight: '60px', boxSizing: 'border-box' }} />
+              {/* Delivery Info section */}
+              <div style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', borderRadius: '10px', padding: '14px', marginBottom: '14px' }}>
+                <div style={{ fontSize: '11px', fontWeight: '700', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '12px' }}>
+                  📦 Delivery Information
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div>
+                    <label style={labelStyle}>Delivery Address <span style={{ color: '#ef4444' }}>*</span></label>
+                    <textarea value={address} onChange={e => setAddress(e.target.value)} placeholder="Enter your full delivery address..." style={{ ...inputStyle, resize: 'vertical', minHeight: '70px' }} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Order Notes (Optional)</label>
+                    <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any special instructions..." style={{ ...inputStyle, resize: 'vertical', minHeight: '55px' }} />
+                  </div>
+                </div>
               </div>
 
               <button onClick={placeOrder} disabled={placing} style={{ width: '100%', background: '#22c55e', color: '#000', border: 'none', borderRadius: '10px', padding: '13px', fontSize: '14px', fontWeight: '700', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.06em', opacity: placing ? 0.7 : 1, marginBottom: '8px' }}>

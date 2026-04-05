@@ -7,38 +7,25 @@ function AdminOrders() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('All')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [expandedOrder, setExpandedOrder] = useState(null)
 
   useEffect(() => {
     const fetchOrders = async () => {
-      // First try with profiles join
       const { data, error } = await supabase
         .from('orders')
         .select('*, order_items(*, products(name, image_url))')
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Error fetching orders:', error)
-        setLoading(false)
-        return
-      }
+      if (error) { console.error('Error fetching orders:', error); setLoading(false); return }
 
-      // For each order, try to get user email from auth (admin only)
-      // We'll enrich with profiles if the table exists, otherwise use user_id
       const enriched = await Promise.all(
         (data || []).map(async (order) => {
           try {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name, email')
-              .eq('id', order.user_id)
-              .single()
+            const { data: profile } = await supabase.from('profiles').select('full_name, email').eq('id', order.user_id).single()
             return { ...order, profiles: profile || null }
-          } catch {
-            return { ...order, profiles: null }
-          }
+          } catch { return { ...order, profiles: null } }
         })
       )
-
       setOrders(enriched)
       setLoading(false)
     }
@@ -62,12 +49,23 @@ function AdminOrders() {
     return map[status] || { bg: '#11111122', color: '#888', border: '#88888833' }
   }
 
+  // Parse customer info from the notes field
+  const parseNotes = (notes) => {
+    if (!notes) return {}
+    const lines = notes.split('\n')
+    const result = {}
+    lines.forEach(line => {
+      if (line.startsWith('Name: ')) result.name = line.replace('Name: ', '')
+      else if (line.startsWith('Email: ')) result.email = line.replace('Email: ', '')
+      else if (line.startsWith('Phone: ')) result.phone = line.replace('Phone: ', '')
+      else if (line.startsWith('Address: ')) result.address = line.replace('Address: ', '')
+      else if (line.startsWith('Notes: ')) result.extra = line.replace('Notes: ', '')
+    })
+    return result
+  }
+
   const statuses = ['All', 'pending', 'processing', 'shipped', 'completed', 'cancelled']
   const filtered = filter === 'All' ? orders : orders.filter(o => o.status === filter)
-
-  // Helper: get display name from order
-  const getCustomerName = (order) => order.profiles?.full_name || `User ${order.user_id?.slice(0, 8)}`
-  const getCustomerEmail = (order) => order.profiles?.email || '—'
 
   return (
     <div style={{ display: 'flex', backgroundColor: '#050505', minHeight: '100vh', fontFamily: "'Segoe UI', sans-serif", color: '#fff' }}>
@@ -109,15 +107,13 @@ function AdminOrders() {
                   background: isActive ? (s === 'All' ? '#22c55e' : st.bg) : '#0a0a0a',
                   color: isActive ? (s === 'All' ? '#000' : st.color) : '#555',
                   border: isActive ? `1px solid ${s === 'All' ? '#22c55e' : st.border}` : '1px solid #151515',
-                  borderRadius: '20px', padding: '5px 12px',
-                  fontSize: '10px', fontWeight: '600', cursor: 'pointer',
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
+                  borderRadius: '20px', padding: '5px 12px', fontSize: '10px', fontWeight: '600',
+                  cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em',
                 }}>{s}</button>
               )
             })}
           </div>
 
-          {/* Orders */}
           {loading ? (
             <div style={{ color: '#3b82f6', fontSize: '14px' }}>Loading orders...</div>
           ) : filtered.length === 0 ? (
@@ -126,62 +122,104 @@ function AdminOrders() {
               <div style={{ color: '#444', fontSize: '13px' }}>No orders found</div>
             </div>
           ) : (
-            <div style={{ background: '#0a0a0a', border: '1px solid #151515', borderRadius: '14px', overflow: 'hidden' }}>
-
-              {/* Desktop header */}
-              <div className="table-header" style={{ display: 'grid', gridTemplateColumns: '100px 1fr 100px 130px 90px 160px', padding: '10px 18px', background: '#0d0d0d', borderBottom: '1px solid #111' }}>
-                {['Order ID', 'Customer', 'Total', 'Status', 'Date', 'Update Status'].map(h => (
-                  <div key={h} style={{ fontSize: '10px', color: '#444', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: '600' }}>{h}</div>
-                ))}
-              </div>
-
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {filtered.map(order => {
                 const s = statusStyle(order.status)
+                const info = parseNotes(order.notes)
+                const isExpanded = expandedOrder === order.id
+
                 return (
-                  <div key={order.id}>
-                    {/* Desktop row */}
-                    <div className="desktop-row" style={{ display: 'grid', gridTemplateColumns: '100px 1fr 100px 130px 90px 160px', padding: '14px 18px', borderBottom: '1px solid #0d0d0d', alignItems: 'center' }}>
-                      <div style={{ fontSize: '12px', color: '#22c55e', fontWeight: '600' }}>#{order.id.slice(0, 8)}</div>
-                      <div>
-                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#ddd' }}>{getCustomerName(order)}</div>
-                        <div style={{ fontSize: '11px', color: '#444', marginTop: '2px' }}>{getCustomerEmail(order)}</div>
+                  <div key={order.id} style={{ background: '#0a0a0a', border: '1px solid #151515', borderRadius: '14px', overflow: 'hidden' }}>
+
+                    {/* Order header row */}
+                    <div style={{ padding: '14px 16px', borderBottom: isExpanded ? '1px solid #111' : 'none', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+
+                      {/* Order ID + date */}
+                      <div style={{ minWidth: '100px' }}>
+                        <div style={{ fontSize: '12px', color: '#22c55e', fontWeight: '700' }}>#{order.id.slice(0, 8)}</div>
+                        <div style={{ fontSize: '10px', color: '#444', marginTop: '2px' }}>{new Date(order.created_at).toLocaleDateString()}</div>
                       </div>
-                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#22c55e' }}>₱{order.total?.toLocaleString()}</div>
-                      <div>
-                        <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>{order.status}</span>
+
+                      {/* Customer info */}
+                      <div style={{ flex: 1, minWidth: '140px' }}>
+                        <div style={{ fontSize: '13px', fontWeight: '600', color: '#ddd' }}>
+                          {info.name || order.profiles?.full_name || `User ${order.user_id?.slice(0, 6)}`}
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#555', marginTop: '1px' }}>
+                          {info.email || order.profiles?.email || '—'}
+                        </div>
+                        {info.phone && <div style={{ fontSize: '11px', color: '#555' }}>{info.phone}</div>}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#444' }}>{new Date(order.created_at).toLocaleDateString()}</div>
-                      <div>
-                        <select value={order.status} onChange={e => updateStatus(order.id, e.target.value)} style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '6px', padding: '5px 8px', color: '#ddd', fontSize: '11px', cursor: 'pointer', outline: 'none' }}>
-                          {['pending', 'processing', 'shipped', 'completed', 'cancelled'].map(st => (
-                            <option key={st} value={st}>{st}</option>
-                          ))}
-                        </select>
+
+                      {/* Total */}
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#22c55e', minWidth: '80px' }}>
+                        ₱{order.total?.toLocaleString()}
                       </div>
+
+                      {/* Status badge */}
+                      <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>
+                        {order.status}
+                      </span>
+
+                      {/* Update status */}
+                      <select value={order.status} onChange={e => updateStatus(order.id, e.target.value)}
+                        style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '6px', padding: '6px 8px', color: '#ddd', fontSize: '11px', cursor: 'pointer', outline: 'none' }}>
+                        {['pending', 'processing', 'shipped', 'completed', 'cancelled'].map(st => (
+                          <option key={st} value={st}>{st}</option>
+                        ))}
+                      </select>
+
+                      {/* Expand toggle */}
+                      <button onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
+                        style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '6px', padding: '6px 10px', color: '#888', fontSize: '11px', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        {isExpanded ? 'Hide ▲' : 'Details ▼'}
+                      </button>
                     </div>
 
-                    {/* Mobile card */}
-                    <div className="mobile-card" style={{ display: 'none', padding: '14px 16px', borderBottom: '1px solid #0d0d0d' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                        <div>
-                          <div style={{ fontSize: '12px', color: '#22c55e', fontWeight: '700', marginBottom: '2px' }}>#{order.id.slice(0, 8)}</div>
-                          <div style={{ fontSize: '13px', fontWeight: '600', color: '#ddd' }}>{getCustomerName(order)}</div>
-                          <div style={{ fontSize: '11px', color: '#444' }}>{getCustomerEmail(order)}</div>
+                    {/* Expanded details */}
+                    {isExpanded && (
+                      <div style={{ padding: '14px 16px', display: 'grid', gap: '14px' }} className="order-details-grid">
+
+                        {/* Customer details card */}
+                        <div style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', borderRadius: '10px', padding: '12px' }}>
+                          <div style={{ fontSize: '10px', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '700', marginBottom: '10px' }}>👤 Customer Details</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {[
+                              { label: 'Full Name', value: info.name || order.profiles?.full_name || '—' },
+                              { label: 'Email', value: info.email || order.profiles?.email || '—' },
+                              { label: 'Phone', value: info.phone || '—' },
+                              { label: 'Address', value: info.address || '—' },
+                              ...(info.extra ? [{ label: 'Notes', value: info.extra }] : []),
+                            ].map(row => (
+                              <div key={row.label} style={{ display: 'flex', gap: '8px', fontSize: '12px' }}>
+                                <span style={{ color: '#555', minWidth: '70px', flexShrink: 0 }}>{row.label}:</span>
+                                <span style={{ color: '#ccc' }}>{row.value}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '14px', fontWeight: '800', color: '#22c55e', marginBottom: '4px' }}>₱{order.total?.toLocaleString()}</div>
-                          <div style={{ fontSize: '10px', color: '#444' }}>{new Date(order.created_at).toLocaleDateString()}</div>
+
+                        {/* Order items card */}
+                        <div style={{ background: '#0d0d0d', border: '1px solid #1a1a1a', borderRadius: '10px', padding: '12px' }}>
+                          <div style={{ fontSize: '10px', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '700', marginBottom: '10px' }}>📦 Order Items</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {order.order_items?.map(item => (
+                              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: '#111', overflow: 'hidden', flexShrink: 0 }}>
+                                  {item.products?.image_url
+                                    ? <img src={item.products.image_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>🎸</div>
+                                  }
+                                </div>
+                                <div style={{ flex: 1, fontSize: '12px', color: '#ccc' }}>{item.products?.name}</div>
+                                <div style={{ fontSize: '11px', color: '#555' }}>x{item.quantity}</div>
+                                <div style={{ fontSize: '12px', fontWeight: '700', color: '#22c55e' }}>₱{item.price?.toLocaleString()}</div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', background: s.bg, color: s.color, border: `1px solid ${s.border}` }}>{order.status}</span>
-                        <select value={order.status} onChange={e => updateStatus(order.id, e.target.value)} style={{ background: '#111', border: '1px solid #1a1a1a', borderRadius: '6px', padding: '6px 10px', color: '#ddd', fontSize: '11px', cursor: 'pointer', outline: 'none', flex: 1 }}>
-                          {['pending', 'processing', 'shipped', 'completed', 'cancelled'].map(st => (
-                            <option key={st} value={st}>{st}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 )
               })}
@@ -196,18 +234,14 @@ function AdminOrders() {
           .desktop-sidebar-spacer { display: block !important; }
           .hamburger-btn { display: none !important; }
           .mobile-overlay { display: none !important; }
-          .table-header { display: grid !important; }
-          .desktop-row { display: grid !important; }
-          .mobile-card { display: none !important; }
+          .order-details-grid { grid-template-columns: 1fr 1fr !important; }
         }
         @media (max-width: 768px) {
           .mobile-sidebar-wrapper { position: fixed !important; }
           .desktop-sidebar-spacer { display: none !important; }
           .hamburger-btn { display: block !important; }
           .mobile-overlay { display: block !important; }
-          .table-header { display: none !important; }
-          .desktop-row { display: none !important; }
-          .mobile-card { display: block !important; }
+          .order-details-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </div>
