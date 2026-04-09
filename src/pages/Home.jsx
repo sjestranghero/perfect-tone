@@ -96,7 +96,7 @@ function Home() {
 
       <div style={{ height: '1px', background: '#111', margin: '0 1.5rem' }} />
 
-      {/* Featured Products — centered, max 3 cols, never looks incomplete */}
+      {/* Featured Products */}
       <div style={{ textAlign: 'center', padding: '2rem 1.5rem 1rem' }}>
         <h2 style={{ fontSize: 'clamp(1.2rem, 5vw, 1.6rem)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Featured <span style={{ color: '#22c55e' }}>Products</span>
@@ -108,26 +108,28 @@ function Home() {
         {featured.length === 0 ? (
           <div style={{ textAlign: 'center', color: '#444', padding: '2rem', fontSize: '13px' }}>No products yet. Add some in the admin panel!</div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${Math.min(featured.length, 3)}, 1fr)`,
-            gap: '1rem',
-            justifyContent: 'center',
-          }}>
+          /* Use CSS class for responsive grid — 1 col mobile, up to 3 on desktop */
+          <div className="featured-grid">
             {featured.map(product => (
-              <div key={product.id} style={{ backgroundColor: '#0a0a0a', border: '1px solid #151515', borderRadius: '14px', overflow: 'hidden' }}>
-                <div style={{ height: '200px', backgroundColor: '#0d0d0d', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              <div key={product.id} style={{ backgroundColor: '#0a0a0a', border: '1px solid #151515', borderRadius: '14px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ height: '200px', backgroundColor: '#0d0d0d', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                   {product.image_url
                     ? <img src={product.image_url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <span style={{ fontSize: '48px' }}>🎸</span>}
                 </div>
-                <div style={{ padding: '1rem' }}>
-                  <div style={{ fontSize: '0.7rem', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600', marginBottom: '0.2rem' }}>{product.category}</div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.3rem', color: '#ddd' }}>{product.name}</div>
-                  <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.8rem', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{product.description}</div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '1.1rem', fontWeight: '800', color: '#22c55e' }}>₱{product.price?.toLocaleString()}</span>
-                    <button onClick={() => navigate('/catalog')} style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', borderRadius: '6px', padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer' }}>Add to Cart</button>
+                <div style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: '600', marginBottom: '0.25rem' }}>{product.category}</div>
+                  <div style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.3rem', color: '#ddd', lineHeight: 1.3 }}>{product.name}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#555', marginBottom: '0.8rem', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', flex: 1 }}>{product.description}</div>
+                  {/* Price + button always on same row, never wrapping */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginTop: 'auto' }}>
+                    <span style={{ fontSize: '1.05rem', fontWeight: '800', color: '#22c55e', whiteSpace: 'nowrap' }}>₱{product.price?.toLocaleString()}</span>
+                    <button
+                      onClick={() => navigate('/catalog')}
+                      style={{ backgroundColor: '#22c55e', color: '#000', border: 'none', borderRadius: '6px', padding: '0.4rem 0.9rem', fontSize: '0.8rem', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+                    >
+                      Add to Cart
+                    </button>
                   </div>
                 </div>
               </div>
@@ -195,8 +197,20 @@ function Home() {
       </div>
 
       <style>{`
-        @media (max-width: 640px) {
-          .featured-grid { grid-template-columns: 1fr !important; }
+        .featured-grid {
+          display: grid;
+          gap: 1rem;
+          grid-template-columns: 1fr;
+        }
+        @media (min-width: 540px) {
+          .featured-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        @media (min-width: 800px) {
+          .featured-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
         }
       `}</style>
     </div>
